@@ -1,0 +1,72 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Three Pipelines Architecture" id="_I8FtPXegdvN0GMeDvC7">
+    <mxGraphModel dx="1018" dy="642" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="nk5GboOcutfjDro1UlaL-2" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;" value="&lt;b&gt;HN API&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#4B5563&quot;&gt;newstories, items&lt;br&gt;+ Algolia backfill&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="160" x="40" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-3" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;" value="&lt;b&gt;1 Feature pipeline&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#4B5563&quot;&gt;Cloud Run Job&lt;br&gt;every 5 min&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="160" x="240" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-4" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;" value="&lt;b&gt;Feature store&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#4B5563&quot;&gt;date-partitioned&lt;br&gt;Parquet on GCS&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="160" x="440" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-5" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;strokeWidth=2;fontFamily=Helvetica;fontSize=13;" value="&lt;b&gt;UI&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#4B5563&quot;&gt;Streamlit on Cloud Run&lt;br&gt;hit probabilities, live&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="180" x="640" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-6" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;" value="&lt;b&gt;3 Inference pipeline&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#4B5563&quot;&gt;Cloud Run Job&lt;br&gt;every 5 min&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="180" x="640" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-7" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;" value="&lt;b&gt;2 Training pipeline&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#4B5563&quot;&gt;GitHub Actions&lt;br&gt;weekly + manual&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="160" x="440" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-8" parent="1" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;strokeWidth=1.5;fontFamily=Helvetica;fontSize=13;" value="&lt;b&gt;Model registry&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#4B5563&quot;&gt;MLflow&lt;br&gt;hosted on DagsHub&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="180" x="640" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-9" edge="1" parent="1" source="nk5GboOcutfjDro1UlaL-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2D7600;strokeWidth=1.5;endArrow=classic;endFill=1;endSize=5;fillColor=#60a917;" target="nk5GboOcutfjDro1UlaL-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-10" edge="1" parent="1" source="nk5GboOcutfjDro1UlaL-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2D7600;strokeWidth=1.5;endArrow=classic;endFill=1;endSize=5;fillColor=#60a917;" target="nk5GboOcutfjDro1UlaL-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-11" edge="1" parent="1" source="nk5GboOcutfjDro1UlaL-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2D7600;strokeWidth=1.5;endArrow=classic;endFill=1;endSize=5;fontColor=default;fontSize=13;labelBackgroundColor=#FFFFFF;fontFamily=Helvetica;fontStyle=0;align=center;verticalAlign=middle;fillColor=#60a917;" target="nk5GboOcutfjDro1UlaL-7" value="&lt;span&gt;read (time split)&lt;/span&gt;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="490" y="295" />
+              <mxPoint x="490" y="295" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-12" edge="1" parent="1" source="nk5GboOcutfjDro1UlaL-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2D7600;strokeWidth=1.5;endArrow=classic;endFill=1;endSize=5;fontColor=default;fontSize=13;align=center;verticalAlign=middle;labelPosition=left;spacingBottom=5;fontFamily=Helvetica;fontStyle=0;fillColor=#60a917;" target="nk5GboOcutfjDro1UlaL-6" value="features">
+          <mxGeometry relative="1" x="0.4219" y="20" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="557" y="290" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-13" edge="1" parent="1" source="nk5GboOcutfjDro1UlaL-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2D7600;strokeWidth=1.5;endArrow=classic;endFill=1;endSize=5;fillColor=#60a917;" target="nk5GboOcutfjDro1UlaL-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-14" edge="1" parent="1" source="nk5GboOcutfjDro1UlaL-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2D7600;strokeWidth=1.5;endArrow=classic;endFill=1;endSize=5;fontColor=default;fontSize=13;align=center;spacingLeft=8;fontFamily=Helvetica;fontStyle=0;verticalAlign=middle;fillColor=#60a917;" target="nk5GboOcutfjDro1UlaL-6" value="load best model">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="730" y="360" />
+              <mxPoint x="730" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nk5GboOcutfjDro1UlaL-15" edge="1" parent="1" source="nk5GboOcutfjDro1UlaL-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2D7600;strokeWidth=1.5;endArrow=classic;endFill=1;endSize=5;fontColor=default;fontSize=13;align=center;spacingLeft=8;fontFamily=Helvetica;fontStyle=0;verticalAlign=middle;fillColor=#60a917;" target="nk5GboOcutfjDro1UlaL-5" value="predictions">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="730" y="220" />
+              <mxPoint x="730" y="220" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
