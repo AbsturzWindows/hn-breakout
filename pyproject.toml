@@ -1,0 +1,32 @@
+[project]
+name = "hn-breakout"
+version = "0.1.0"
+description = "Early prediction of Hacker News front-page stories (MLOps HS26)"
+authors = [{ name = "David Rivera Allegro" }]
+requires-python = ">=3.11"
+dependencies = [
+    "gcsfs>=2026.10.0",
+    "httpx>=0.28.1",
+    "pandas>=3.0.6",
+    "pyarrow>=25.0.1",
+]
+
+[project.scripts]
+hn-poll = "hn_breakout.poll:main"
+hn-build-features = "hn_breakout.features:main"
+
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+]
