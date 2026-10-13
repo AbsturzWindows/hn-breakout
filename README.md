@@ -1,5 +1,7 @@
 # HN Breakout
 
+[`docs/proposal.pdf`](docs/proposal.pdf)
+
 Early prediction of Hacker News front-page stories (HSLU MLOps HS26).
 
 **Prediction:** 30 minutes after a story is posted, will it reach **≥ 100 points within 24 hours**?
