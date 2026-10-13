@@ -17,7 +17,8 @@ def write(table: str, df: pd.DataFrame, ts: datetime, root: str = ROOT) -> None:
         return
     fs, base = fsspec.core.url_to_fs(root)
     folder = f"{base}/{table}/date={ts:%Y-%m-%d}"
-    fs.makedirs(folder, exist_ok=True)
+    if "file" in fs.protocol:  # local disk needs the folder; buckets have no real folders
+        fs.makedirs(folder, exist_ok=True)
     with fs.open(f"{folder}/{ts:%H%M%S}.parquet", "wb") as f:
         df.to_parquet(f, index=False)
 

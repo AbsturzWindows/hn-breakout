@@ -8,16 +8,20 @@ or locally after installing the `gcloud` CLI and running `gcloud auth login`.
 
 ## 0. Variables
 
-Pick your own names. The bucket name must be globally unique.
+Pick your own names. The bucket name must be globally unique (so change it if u want to run the same thing).
 
 ```bash
+cat >> ~/.bashrc <<'EOF'
+# HN Breakout
 export PROJECT=your-gcp-project-id
-export REGION=europe-west6          # Zurich
-export BUCKET=hn-breakout-data-$RANDOM
+export REGION=europe-west6
+export BUCKET=hn-breakout-data-dra
 export REPO=hn-breakout
 export IMAGE=$REGION-docker.pkg.dev/$PROJECT/$REPO/hn-breakout:latest
 export SA=hn-pipeline@$PROJECT.iam.gserviceaccount.com
-
+EOF
+source ~/.bashrc
+echo $PROJECT $BUCKET   # check
 gcloud config set project $PROJECT
 ```
 
@@ -44,11 +48,33 @@ gcloud projects add-iam-policy-binding $PROJECT \
 
 ## 3. Build the Docker image (after every code change)
 
-Run from the repository root:
+Cloud Build runs with the Compute Engine default service account, which has no
+permissions in new projects. Give it the build role once:
+
+```bash
+export PROJECT_NUMBER=$(gcloud projects describe $PROJECT --format='value(projectNumber)')
+gcloud projects add-iam-policy-binding $PROJECT \
+  --member=serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com \
+  --role=roles/cloudbuild.builds.builder
+```
+
+Without it the build fails with `403 ... storage.objects.get`. Permissions can take
+a minute to apply. Then build, from the repository root:
 
 ```bash
 gcloud artifacts repositories create $REPO --repository-format=docker --location=$REGION  # once
 gcloud builds submit --tag $IMAGE .
+```
+
+The message "Some files were not included in the source upload" is normal
+(files from `.gitignore` and `.dockerignore` are skipped).
+
+After a rebuild, point the jobs at the new image. Cloud Run resolves `:latest` to a
+fixed image when the job is created or updated, so without this the old code keeps running:
+
+```bash
+gcloud run jobs update hn-poll --image=$IMAGE --region=$REGION
+gcloud run jobs update hn-build-features --image=$IMAGE --region=$REGION  # once step 6 exists
 ```
 
 ## 4. Create the poller job (once; later use `jobs update` with the same flags)
