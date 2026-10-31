@@ -6,7 +6,8 @@ domain_hit_rate is left to training/inference: it may only use labels known at p
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
+import sys
+from datetime import UTC, date, datetime, timedelta
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -101,11 +102,19 @@ def build_day(day, root: str = storage.ROOT) -> pd.DataFrame:
 
 
 def main() -> None:
-    """Rebuild the last 3 days; re-running overwrites the same file, so it is safe."""
+    """Rebuild the last 3 days, or a date range after a feature change (backfill):
+    hn-build-features 2026-10-13 2026-10-28. Re-running overwrites the same files, so it is safe.
+    """
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     today = datetime.now(UTC).date()
-    for back in (1, 2, 3):
-        day = today - timedelta(days=back)
+    if len(sys.argv) == 3:
+        start, end = date.fromisoformat(sys.argv[1]), date.fromisoformat(sys.argv[2])
+    elif len(sys.argv) == 1:
+        start, end = today - timedelta(days=3), today - timedelta(days=1)
+    else:
+        sys.exit("usage: hn-build-features [START END], dates as YYYY-MM-DD")
+    for i in range((end - start).days + 1):
+        day = start + timedelta(days=i)
         df = build_day(day)
         midnight = datetime(day.year, day.month, day.day, tzinfo=UTC)
         storage.write("features", df, midnight)  # always features/date=<day>/000000.parquet
