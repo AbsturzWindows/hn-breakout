@@ -11,10 +11,13 @@ milestone summaries in [docs/](docs/).
 posted (usually 24h00 to 24h05). If no run succeeds between 24 and 26 hours, the story gets no
 label and is left out. Hit = score ≥ 100 ([docs/decisions.md](docs/decisions.md)).
 
-**What is different from earlier projects:** the KTH ID2223 2023/24 "Upvote predictor for
-HackerNews" predicts the front-page probability from what is known when a story is posted,
-refreshed by a daily pipeline. HN Breakout waits 30 minutes and learns from the story's own vote
-trajectory, recorded in its own 5-minute snapshots, and has to beat a momentum baseline.
+**What is different from earlier projects:** the KTH ID2223 2023/24 project
+[group-5-id2223/project](https://github.com/group-5-id2223/project) predicts a story's score from
+its title (BERT embedding), domain and posting time. Its daily pipeline stores the current top ten
+stories and its backfill samples random old items, so each story is saved once, with whatever
+score it has when fetched. HN Breakout predicts 30 minutes after posting whether a story reaches
+≥ 100 points within 24 hours, from its own vote trajectory recorded every 5 minutes, with the label
+always taken at the same age, and it has to beat a momentum baseline.
 
 ## Pipelines
 
