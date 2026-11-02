@@ -53,7 +53,7 @@ uv run hn-build-features    # feature tables for the last 3 days
 uv run pytest
 ```
 
-Backfill (both are safe to re-run, they overwrite the same files):
+Backfill (both are safe to re-run; `hn-backfill` skips days it already has, so a stopped run resumes):
 
 ```bash
 uv run hn-build-features 2026-10-13 2026-10-28   # rebuild features for a date range

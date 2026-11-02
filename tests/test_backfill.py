@@ -41,3 +41,17 @@ def test_incomplete_answer_is_an_error():
     http, _ = algolia(2, n_total=1500)
     with pytest.raises(RuntimeError):
         backfill.stories(http, 0, 3600)
+
+
+def test_slow_answer_is_retried(monkeypatch):
+    monkeypatch.setattr(backfill.time, "sleep", lambda s: None)
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        if len(calls) == 1:
+            raise httpx.ReadTimeout("slow", request=request)
+        return httpx.Response(200, json={"nbHits": 0, "hits": []})
+
+    http = httpx.Client(transport=httpx.MockTransport(handle))
+    assert backfill.stories(http, 0, 3600) == [] and len(calls) == 2
