@@ -12,6 +12,7 @@ import sys
 import time
 from datetime import UTC, date, datetime, timedelta
 
+import fsspec
 import httpx
 import pandas as pd
 
@@ -74,11 +75,16 @@ def main() -> None:
     start, end = date.fromisoformat(sys.argv[1]), date.fromisoformat(sys.argv[2])
     if end > datetime.now(UTC).date() - timedelta(days=2):
         sys.exit("END must be at least 2 days ago: younger stories have no final score yet")
+    # days saved by an earlier run are skipped, so a stopped backfill resumes where it stopped;
+    # one listing of the bucket instead of opening every file (that took minutes per day)
+    fs, base = fsspec.core.url_to_fs(storage.ROOT)
+    done = {p.split("date=")[1][:10] for p in fs.glob(f"{base}/history/date=*/*.parquet")}
+    log.info("%d days already saved", len(done))
     with httpx.Client(timeout=60) as http:
         for i in range((end - start).days + 1):
             day = start + timedelta(days=i)
-            if not storage.read("history", day, day).empty:
-                continue  # done in an earlier run: a stopped backfill resumes where it stopped
+            if day.isoformat() in done:
+                continue
             df = backfill_day(http, day)
             midnight = datetime(day.year, day.month, day.day, tzinfo=UTC)
             storage.write("history", df, midnight)  # history/date=<day>/000000.parquet
