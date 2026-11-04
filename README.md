@@ -38,7 +38,7 @@ src/hn_breakout/
   features.py   feature definitions shared by training and inference + daily feature build
   backfill.py   past stories from Algolia -> history table
 scripts/        hit-rate estimate from Algolia, daily completeness report of the poller data
-tests/          unit tests against a fake HN API
+tests/          unit tests against a fake HN API and Algolia
 docs/           proposal, milestone summaries, deployment guide
 ```
 
@@ -66,5 +66,7 @@ only from the day the poller started (13.10.2026). Data check: `uv run scripts/c
 With Docker: `docker build -t hn-breakout . && docker run --rm -v "$PWD/data:/app/data" hn-breakout`
 
 ## Deploy
+
+The schedules (poller every 5 min, features daily at 03:15 UTC) run in Cloud Scheduler, not GitHub Actions.
 
 See [docs/deploy_gcp.md](docs/deploy_gcp.md).
