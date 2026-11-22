@@ -46,3 +46,20 @@ the 24-hour target, and the feature would change its meaning on 13.10. Decision:
 uses only the poller's labels. Domains with few labels fall back to the overall rate
 (`PRIOR_WEIGHT` in `features.py`), so the feature is weak in the first days and improves as labels
 accumulate. The `history` table stays in the bucket but is not used.
+
+## 2026-11-22: Train, validation and test periods (review point A4)
+
+Fixed before any model is trained. Days are UTC calendar days by posting time.
+
+| Period | Days | Used for |
+|---|---|---|
+| Training | 13.10.–08.11.2026 | fitting the models |
+| Validation | 09.11.–15.11.2026 (Mon–Sun) | early stopping, the live alert threshold (B2), any tuning |
+| Test | 16.11.–29.11.2026 (two full weeks, Mon–Sun) | the final MS3 numbers, touched once per model |
+
+- The test period ends on 29.11. so that its labels (24 h) and the daily feature build are
+  complete before training on 01.12.
+- Full weeks keep weekdays and weekends balanced, since weekends have fewer stories and more hits.
+- `domain_hit_rate` for test stories may use labels from the training period, as it would live;
+  it never uses a label known after the story's prediction time (A1).
+- The proposal planned six weeks of training; the poller started on 13.10., so it is five.
