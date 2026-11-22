@@ -28,3 +28,21 @@ labels exist. The threshold does not change based on that comparison.
   averaged over the test days. The baseline is ranked the same way by points at 30 minutes.
 - Live: the day is not over yet, so the UI alerts on a fixed probability threshold, chosen on
   the training data so that about 10 stories per day are above it.
+
+## 2026-11-22: domain_hit_rate uses only the poller's own 24-hour labels (review point B1)
+
+The backfilled `history` table stores Algolia points from the day of the backfill, not after
+24 hours. `scripts/compare_labels.py` compares both labels on the same 15,868 stories
+(14.-28.10.2026):
+
+| | |
+|---|---|
+| Hit rate, 24-hour label | 3.34 % |
+| Hit rate, Algolia points | 4.15 % |
+| Domains with >= 20 stories | 55: Algolia higher in 16, equal in 39, lower in none |
+
+The history label is never lower and often higher, so it would make domains look better than
+the 24-hour target, and the feature would change its meaning on 13.10. Decision: `domain_hit_rate`
+uses only the poller's labels. Domains with few labels fall back to the overall rate
+(`PRIOR_WEIGHT` in `features.py`), so the feature is weak in the first days and improves as labels
+accumulate. The `history` table stays in the bucket but is not used.

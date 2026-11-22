@@ -2,7 +2,8 @@
 
 story_features() turns raw snapshots into one row per story, using only what was known
 when the story was 30 minutes old. main() rebuilds the daily feature table (run once a day).
-domain_hit_rate is left to training/inference: it may only use labels known at prediction time.
+domain_hit_rate() needs labels from earlier days, so training and inference call it on the
+feature table themselves; it only uses labels known at each story's prediction time.
 """
 
 import logging
@@ -21,6 +22,7 @@ CHECKPOINTS = (10, 20, 30)  # minutes
 MAX_STALENESS = 7 * 60  # "points at 10 min" may come from a snapshot taken at 3-10 min, not earlier
 LATE_FIRST_SEEN = 12 * 60  # first seen this late = we missed its start (e.g. second-chance pool)
 HIT_THRESHOLD = 100
+PRIOR_WEIGHT = 20  # a domain with this many labels counts half its own rate, half the overall rate
 
 
 def domain_of(url) -> str:
@@ -84,10 +86,52 @@ def story_features(snapshots: pd.DataFrame) -> pd.DataFrame:
 def attach_labels(features: pd.DataFrame, labels: pd.DataFrame) -> pd.DataFrame:
     """Add the target; stories without a label yet are dropped."""
     out = features.merge(
-        labels.drop_duplicates("story_id")[["story_id", "final_score"]], on="story_id"
+        labels.drop_duplicates("story_id")[["story_id", "final_score", "labeled_at"]],
+        on="story_id",
     )
     out["hit"] = (out["final_score"] >= HIT_THRESHOLD).astype(int)
+    # unix seconds, like `time`: when the label became known (domain_hit_rate needs it)
+    epoch = pd.Timestamp(0, tz="UTC")
+    out["labeled_at"] = (pd.to_datetime(out["labeled_at"], utc=True) - epoch) // pd.Timedelta("1s")
     return out
+
+
+def domain_hit_rate(stories: pd.DataFrame, labelled: pd.DataFrame) -> pd.Series:
+    """Hit rate of each story's domain, from labels known before its prediction time
+    (labeled_at < time + 30 min), so no future information. Domains with few labels are
+    pulled towards the overall rate (PRIOR_WEIGHT); NaN while no label is known at all.
+
+    stories: time, domain.  labelled: domain, hit, labeled_at (unix seconds, as from attach_labels)
+    """
+    lab = labelled.sort_values("labeled_at").reset_index(drop=True)
+    lab["n_all"] = range(1, len(lab) + 1)  # running counts, read "as of" each prediction time
+    lab["h_all"] = lab["hit"].cumsum()
+    lab["n"] = lab.groupby("domain").cumcount() + 1
+    lab["h"] = lab.groupby("domain")["hit"].cumsum()
+    lab["labeled_at"] = lab["labeled_at"].astype("int64")
+
+    s = stories[["domain"]].assign(
+        when=(stories["time"] + PREDICTION_AGE).astype("int64"), row=range(len(stories))
+    )
+    s = s.sort_values("when")
+    s = pd.merge_asof(  # last label strictly before `when`
+        s,
+        lab[["labeled_at", "n_all", "h_all"]],
+        left_on="when",
+        right_on="labeled_at",
+        allow_exact_matches=False,
+    ).drop(columns="labeled_at")
+    s = pd.merge_asof(
+        s,
+        lab[["labeled_at", "domain", "n", "h"]],
+        left_on="when",
+        right_on="labeled_at",
+        by="domain",
+        allow_exact_matches=False,
+    )
+    overall = s["h_all"] / s["n_all"]
+    rate = (s["h"].fillna(0) + PRIOR_WEIGHT * overall) / (s["n"].fillna(0) + PRIOR_WEIGHT)
+    return pd.Series(rate.to_numpy(), index=s["row"]).sort_index().set_axis(stories.index)
 
 
 def build_day(day, root: str = storage.ROOT) -> pd.DataFrame:

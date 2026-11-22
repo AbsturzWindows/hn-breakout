@@ -1,8 +1,9 @@
 """Backfill past stories from Algolia's HN search into the `history` table.
 
-HN keeps no score history, so this gives no momentum features. It gives the outcome of
-past stories (title, url, author, final points), so domain_hit_rate has history from the
-first training day. Points are as of the backfill, not at 24 h; they barely change later.
+HN keeps no score history, so this gives no momentum features, only the outcome of past
+stories (title, url, author, points). The points are read at backfill time, not at 24 h, which
+counts about a quarter more hits (scripts/compare_labels.py), so domain_hit_rate does not use
+this table (docs/decisions.md, 2026-11-22).
 
     hn-backfill 2026-07-15 2026-10-12
 """

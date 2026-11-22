@@ -1,6 +1,12 @@
 import pandas as pd
 
-from hn_breakout.features import attach_labels, domain_of, story_features
+from hn_breakout.features import (
+    PRIOR_WEIGHT,
+    attach_labels,
+    domain_hit_rate,
+    domain_of,
+    story_features,
+)
 
 T0 = 1_790_000_000  # submission time of story 1
 
@@ -71,10 +77,39 @@ def test_title_flags_and_concurrency():
 
 def test_attach_labels_drops_unlabelled_and_sets_hit():
     feats = story_features(pd.DataFrame(snaps(1, T0, {5: 1}) + snaps(2, T0, {5: 1})))
-    labels = pd.DataFrame({"story_id": [1], "final_score": [120]})
+    labeled_at = pd.Timestamp(T0 + 86400, unit="s", tz="UTC")
+    labels = pd.DataFrame({"story_id": [1], "final_score": [120], "labeled_at": [labeled_at]})
     out = attach_labels(feats, labels)
     assert list(out["story_id"]) == [1] and out.loc[0, "hit"] == 1
+    assert out.loc[0, "labeled_at"] == T0 + 86400  # unix seconds, like `time`
 
 
 def test_only_snapshots_older_than_30_min_gives_empty_frame():
     assert story_features(pd.DataFrame(snaps(1, T0, {33: 5}))).empty
+
+
+def test_domain_hit_rate_ignores_labels_from_after_the_prediction():
+    story = pd.DataFrame({"time": [T0], "domain": ["a.com"]})
+    known = T0 + 30 * 60 - 1  # just before the prediction time
+    labelled = pd.DataFrame(
+        {"domain": ["a.com", "b.com"], "hit": [1, 0], "labeled_at": [known, known]}
+    )
+    before = domain_hit_rate(story, labelled).iloc[0]
+    late = pd.DataFrame({"domain": ["a.com"], "hit": [1], "labeled_at": [T0 + 30 * 60]})
+    after = domain_hit_rate(story, pd.concat([labelled, late])).iloc[0]
+    assert before == after == (1 + PRIOR_WEIGHT * 0.5) / (1 + PRIOR_WEIGHT)
+
+
+def test_domain_hit_rate_smooths_towards_the_overall_rate():
+    stories = pd.DataFrame({"time": [T0, T0], "domain": ["big.com", "new.com"]})
+    labelled = pd.DataFrame(
+        {
+            "domain": ["big.com"] * 100 + ["x.com"] * 100,
+            "hit": [1] * 50 + [0] * 150,
+            "labeled_at": [T0 - 1] * 200,
+        }
+    )
+    big, new = domain_hit_rate(stories, labelled)
+    assert new == 0.25  # no label of its own: the overall rate
+    assert 0.25 < big < 0.5  # its own 0.5, pulled a little towards 0.25
+    assert domain_hit_rate(stories, labelled.iloc[:0]).isna().all()  # nothing known yet
