@@ -1,0 +1,31 @@
+name: Train
+on:
+  workflow_dispatch:
+    inputs:
+      final:
+        description: "Also evaluate on the test period and register the model (once, from 01.12.)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write   # GitHub's login token for Google (read-only access to the bucket)
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --group train
+      - run: uv run hn-train ${{ inputs.final && '--final' || '' }}
+        env:
+          STORAGE_ROOT: ${{ vars.STORAGE_ROOT }}
+          MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          GIT_SHA: ${{ github.sha }}

@@ -15,6 +15,7 @@ dependencies = [
 hn-poll = "hn_breakout.poll:main"
 hn-build-features = "hn_breakout.features:main"
 hn-backfill = "hn_breakout.backfill:main"
+hn-train = "hn_breakout.train:main"
 
 [build-system]
 requires = ["uv_build>=0.8.17,<0.9.0"]
@@ -30,4 +31,9 @@ line-length = 100
 dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.10",
+]
+train = [
+    "lightgbm>=4.7.0",
+    "mlflow-skinny>=3.18.0",
+    "scikit-learn>=1.9.1",
 ]
