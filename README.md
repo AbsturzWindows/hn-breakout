@@ -65,8 +65,13 @@ only from the day the poller started (13.10.2026). Data check: `uv run scripts/c
 
 With Docker: `docker build -t hn-breakout . && docker run --rm -v "$PWD/data:/app/data" hn-breakout`
 
-## Deploy
+## Deploy and schedules
 
-The schedules (poller every 5 min, features daily at 03:15 UTC) run in Cloud Scheduler, not GitHub Actions.
+| What | Where | When |
+|---|---|---|
+| Poller, feature build | Cloud Run Jobs + Cloud Scheduler, deployed by `./deploy.sh` | every 5 min, daily 03:15 UTC |
+| Completeness report | GitHub Actions, `completeness.yml` (table in the run log) | daily |
+| Training | GitHub Actions, `train.yml`, logs to MLflow on DagsHub | started by hand |
 
-See [docs/deploy_gcp.md](docs/deploy_gcp.md).
+One-time setup and details: [docs/deploy_gcp.md](docs/deploy_gcp.md). Every deploy is recorded
+with its commit and image digest in [docs/deploys.log](docs/deploys.log).

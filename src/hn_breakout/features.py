@@ -7,6 +7,7 @@ feature table themselves; it only uses labels known at each story's prediction t
 """
 
 import logging
+import os
 import sys
 from datetime import UTC, date, datetime, timedelta
 from urllib.parse import urlparse
@@ -160,6 +161,8 @@ def main() -> None:
     for i in range((end - start).days + 1):
         day = start + timedelta(days=i)
         df = build_day(day)
+        if not df.empty:  # which commit built this file (A3); deploy.sh sets GIT_SHA
+            df["code_version"] = os.environ.get("GIT_SHA", "local")
         midnight = datetime(day.year, day.month, day.day, tzinfo=UTC)
         storage.write("features", df, midnight)  # always features/date=<day>/000000.parquet
         log.info("%s: %d stories, %d hits", day, len(df), int(df["hit"].sum()) if len(df) else 0)

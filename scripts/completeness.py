@@ -1,7 +1,8 @@
-"""Daily completeness of the poller data (review point E2). Fastest on a local copy:
+"""Daily completeness of the poller data and the feature build (review points E2, E1).
+Runs daily in GitHub Actions (.github/workflows/completeness.yml), reading the bucket.
+Locally, on a copy: gcloud storage rsync -r gs://$BUCKET/v1 data
 
-gcloud storage rsync -r gs://$BUCKET/v1 data
-uv run scripts/completeness.py [first-day, default 7 days ago]
+    uv run scripts/completeness.py [first-day, default 7 days ago]
 """
 
 import sys
@@ -49,6 +50,13 @@ if not feats.empty:
         report["labels"] = lab.size()
         report["hit_%"] = 100 * lab["hit"].mean()
         print("duplicate labels:", labels["story_id"].duplicated().sum())
+
+built = storage.read("features", start, today)
+if not built.empty:  # did the daily feature build run, and with which code?
+    b = built.groupby(pd.to_datetime(built["time"], unit="s", utc=True).dt.date)
+    report["feature_rows"] = b.size()
+    if "code_version" in built:
+        report["feature_build"] = b["code_version"].first()
 
 print(report.round(1).to_string())
 print("A full day has 288 runs. Labels arrive 24 h after posting, so the last day is incomplete.")

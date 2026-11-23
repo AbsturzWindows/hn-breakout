@@ -107,7 +107,13 @@ def main() -> None:
 
     mlflow.set_experiment("hn-breakout")
     with mlflow.start_run():
-        mlflow.set_tags({"code_version": os.environ.get("GIT_SHA", "local"), "best_on_valid": best})
+        mlflow.set_tags(
+            {
+                "code_version": os.environ.get("GIT_SHA", "local"),  # the training code
+                "feature_builds": ",".join(df["code_version"].unique()),  # the feature code (A3)
+                "best_on_valid": best,
+            }
+        )
         mlflow.log_params(
             {"train": TRAIN, "valid": VALID, "test": TEST, "rounds": ROUNDS, **PARAMS}
         )

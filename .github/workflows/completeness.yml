@@ -1,0 +1,25 @@
+name: Data completeness
+on:
+  schedule:
+    - cron: "30 6 * * *"   # daily; the exact time does not matter
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # GitHub's login token for Google (read-only access to the bucket)
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run scripts/completeness.py   # the last 7 days, read from the bucket
+        env:
+          STORAGE_ROOT: ${{ vars.STORAGE_ROOT }}

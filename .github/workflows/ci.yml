@@ -16,3 +16,5 @@ jobs:
       - run: uv sync --locked --all-groups
       - run: uv run ruff check .
       - run: uv run pytest -q
+      - run: docker build -t hn-breakout .
+      - run: docker run --rm hn-breakout python -c "import hn_breakout.poll, hn_breakout.features"
