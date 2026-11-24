@@ -1028,6 +1028,8 @@ train = [
     { name = "lightgbm" },
     { name = "mlflow-skinny" },
     { name = "scikit-learn" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 
 [package.metadata]
@@ -1047,6 +1049,7 @@ train = [
     { name = "lightgbm", specifier = ">=4.7.0" },
     { name = "mlflow-skinny", specifier = ">=3.18.0" },
     { name = "scikit-learn", specifier = ">=1.9.1" },
+    { name = "scipy", specifier = ">=1.17.1" },
 ]
 
 [[package]]

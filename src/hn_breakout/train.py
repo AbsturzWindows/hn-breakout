@@ -1,5 +1,5 @@
-"""Training pipeline: train a momentum-only and a full LightGBM model, compare both with the
-momentum baseline (points at 30 min) and log everything to MLflow.
+"""Training pipeline: train three LightGBM models (momentum only, full, full + title words),
+compare them with the momentum baseline (points at 30 min) and log everything to MLflow.
 
     hn-train            evaluate on the validation week
     hn-train --final    also evaluate once on the test period and register the better model
@@ -15,6 +15,8 @@ import lightgbm as lgb
 import mlflow
 import numpy as np
 import pandas as pd
+from scipy.sparse import hstack
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import average_precision_score
 
 from hn_breakout import storage
@@ -53,15 +55,15 @@ def precision_at_10(df: pd.DataFrame, score) -> float:
     return top.groupby("day")["hit"].mean().mean()
 
 
-def bootstrap(y, full, baseline, n=1000) -> tuple[float, float]:
-    """95 % interval of PR-AUC(full) - PR-AUC(baseline), resampling stories."""
+def bootstrap(y, model, baseline, n=1000) -> tuple[float, float]:
+    """95 % interval of PR-AUC(model) - PR-AUC(baseline), resampling stories."""
     rng = np.random.default_rng(0)
-    y, full, baseline = np.asarray(y), np.asarray(full), np.asarray(baseline)
+    y, model, baseline = np.asarray(y), np.asarray(model), np.asarray(baseline)
     diffs = []
     for _ in range(n):
         i = rng.integers(0, len(y), len(y))
         diffs.append(
-            average_precision_score(y[i], full[i]) - average_precision_score(y[i], baseline[i])
+            average_precision_score(y[i], model[i]) - average_precision_score(y[i], baseline[i])
         )
     return tuple(np.percentile(diffs, [2.5, 97.5]))
 
@@ -81,12 +83,21 @@ def main() -> None:
 
     momentum = lgb.train(PARAMS, lgb.Dataset(train[MOMENTUM], train["hit"]), ROUNDS)
     full = lgb.train(PARAMS, lgb.Dataset(train[FULL], train["hit"]), ROUNDS)
+    # title words, learned from the training period only (rule from the MS1 answer to A1);
+    # a word must appear in at least 20 training stories
+    words = TfidfVectorizer(min_df=20, stop_words="english").fit(train["title"])
+
+    def with_words(part):
+        return hstack([part[FULL].to_numpy(float), words.transform(part["title"])], format="csr")
+
+    title = lgb.train(PARAMS, lgb.Dataset(with_words(train), train["hit"]), ROUNDS)
 
     def scores(part):
         return {
             "baseline": part["points_30"],
             "momentum": momentum.predict(part[MOMENTUM]),
             "full": full.predict(part[FULL]),
+            "title": title.predict(with_words(part)),
         }
 
     metrics = {}
@@ -98,12 +109,13 @@ def main() -> None:
             p10 = precision_at_10(part, score)
             metrics[f"{name}_ap_{model}"], metrics[f"{name}_p10_{model}"] = ap, p10
             print(f"  {model:9} PR-AUC {ap:.3f}   precision@10 per day {p10:.3f}")
-        lo, hi = bootstrap(part["hit"], s["full"], s["baseline"])
-        metrics[f"{name}_full_minus_baseline_lo"] = lo
-        metrics[f"{name}_full_minus_baseline_hi"] = hi
-        print(f"  full - baseline PR-AUC, 95 % interval: {lo:+.3f} to {hi:+.3f}")
+        for model in ("momentum", "full", "title"):
+            lo, hi = bootstrap(part["hit"], s[model], s["baseline"])
+            metrics[f"{name}_{model}_minus_baseline_lo"] = lo
+            metrics[f"{name}_{model}_minus_baseline_hi"] = hi
+            print(f"  {model} - baseline PR-AUC, 95 % interval: {lo:+.3f} to {hi:+.3f}")
     # the model to register is chosen on the validation week, never on the test period
-    best = "full" if metrics["valid_ap_full"] > metrics["valid_ap_momentum"] else "momentum"
+    best = max(("momentum", "full", "title"), key=lambda model: metrics[f"valid_ap_{model}"])
 
     mlflow.set_experiment("hn-breakout")
     with mlflow.start_run():
@@ -119,6 +131,9 @@ def main() -> None:
         )
         mlflow.log_params({"train_stories": len(train), "train_hits": int(train["hit"].sum())})
         mlflow.log_metrics(metrics)
-        for model_name, model in (("momentum", momentum), ("full", full)):
+        for model_name, model in (("momentum", momentum), ("full", full), ("title", title)):
             register = "hn-breakout" if final and model_name == best else None
             mlflow.lightgbm.log_model(model, name=model_name, registered_model_name=register)
+        mlflow.sklearn.log_model(
+            words, name="title_words", serialization_format="pickle"
+        )  # inference needs the same words

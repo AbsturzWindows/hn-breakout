@@ -36,4 +36,5 @@ train = [
     "lightgbm>=4.7.0",
     "mlflow-skinny>=3.18.0",
     "scikit-learn>=1.9.1",
+    "scipy>=1.17.1",
 ]

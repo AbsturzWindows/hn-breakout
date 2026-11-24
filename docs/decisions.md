@@ -63,3 +63,20 @@ Fixed before any model is trained. Days are UTC calendar days by posting time.
 - `domain_hit_rate` for test stories may use labels from the training period, as it would live;
   it never uses a label known after the story's prediction time (A1).
 - The proposal planned six weeks of training; the poller started on 13.10., so it is five.
+
+## 2026-11-24: Title words in the model (rule from the MS1 answer to A1)
+
+Rule set in the MS2 summary, before any training: if the full model adds less than 0.03 PR-AUC
+over the momentum-only model, title words are brought forward from the stretch goals. First run
+on the validation week (MLflow run `traveling-mink-63`, 7,063 stories, 273 hits):
+
+| | PR-AUC |
+|---|---|
+| Baseline (points at 30 min) | 0.425 |
+| Momentum-only model | 0.452 |
+| Full model | 0.469 (+0.017 over momentum) |
+
++0.017 < 0.03, so `train.py` adds a third model: the full model plus TF-IDF title words
+(learned from the training period only, words in at least 20 training stories, English stop words
+removed; fixed in advance, not tuned). The model registered with `--final` is the best of the three
+on the validation week.
