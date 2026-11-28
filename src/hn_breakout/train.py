@@ -1,15 +1,17 @@
 """Training pipeline: train three LightGBM models (momentum only, full, full + title words),
 compare them with the momentum baseline (points at 30 min) and log everything to MLflow.
 
-    hn-train            evaluate on the validation week
-    hn-train --final    also evaluate once on the test period and register the better model
+    hn-train --validate   the fixed periods from docs/decisions.md (2026-11-22), validation only
+    hn-train --final      also evaluate once on the test period and register the best model
+    hn-train --retrain    weekly: train on everything but the last 7 complete days, validate on
+                          those, register the best model
 
-The periods are fixed in docs/decisions.md (2026-11-22). Nothing is tuned.
+Nothing is tuned.
 """
 
 import os
 import sys
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import lightgbm as lgb
 import mlflow
@@ -69,16 +71,29 @@ def bootstrap(y, model, baseline, n=1000) -> tuple[float, float]:
 
 
 def main() -> None:
-    final = "--final" in sys.argv[1:]
+    mode = sys.argv[1] if len(sys.argv) > 1 else "--validate"
+    if mode == "--validate":
+        train_days, valid_days, test_days = TRAIN, VALID, None
+    elif mode == "--final":
+        train_days, valid_days, test_days = TRAIN, VALID, TEST
+    elif mode == "--retrain":
+        last = datetime.now(UTC).date() - timedelta(days=3)  # newest day with all labels
+        if last <= TEST[1]:  # the test period stays untouched until the final evaluation
+            sys.exit("the weekly retrain starts after the test period (from 03.12.)")
+        train_days = (TRAIN[0], last - timedelta(days=7))
+        valid_days = (last - timedelta(days=6), last)
+        test_days = None
+    else:
+        sys.exit("usage: hn-train [--validate | --final | --retrain]")
 
-    df = storage.read("features", TRAIN[0], TEST[1])
+    df = storage.read("features", train_days[0], (test_days or valid_days)[1])
     df["domain_hit_rate"] = domain_hit_rate(df, df)  # as of each story's prediction time (A1)
     df = df[(df["complete"] == 1) & (df["late_first_seen"] == 0)]  # incomplete or seen late
     df["day"] = pd.to_datetime(df["time"], unit="s", utc=True).dt.date
-    train = df[df["day"].between(*TRAIN)]
-    valid = df[df["day"].between(*VALID)]
-    test = df[df["day"].between(*TEST)]
-    if final and test["day"].nunique() < 14:
+    train = df[df["day"].between(*train_days)]
+    valid = df[df["day"].between(*valid_days)]
+    test = df[df["day"].between(*test_days)] if test_days else None
+    if test_days and test["day"].nunique() < 14:
         sys.exit("the test period is not complete yet (labels arrive 24 h after posting)")
 
     momentum = lgb.train(PARAMS, lgb.Dataset(train[MOMENTUM], train["hit"]), ROUNDS)
@@ -101,7 +116,7 @@ def main() -> None:
         }
 
     metrics = {}
-    for name, part in [("valid", valid)] + ([("test", test)] if final else []):
+    for name, part in [("valid", valid)] + ([("test", test)] if test_days else []):
         print(f"{name}: {len(part)} stories, {part['hit'].sum()} hits")
         s = scores(part)
         for model, score in s.items():
@@ -127,12 +142,18 @@ def main() -> None:
             }
         )
         mlflow.log_params(
-            {"train": TRAIN, "valid": VALID, "test": TEST, "rounds": ROUNDS, **PARAMS}
+            {
+                "mode": mode,
+                "train": f"{train_days[0]} to {train_days[1]}",
+                "valid": f"{valid_days[0]} to {valid_days[1]}",
+                "test": f"{test_days[0]} to {test_days[1]}" if test_days else "none",
+            }
         )
+        mlflow.log_params({"rounds": ROUNDS, **PARAMS})
         mlflow.log_params({"train_stories": len(train), "train_hits": int(train["hit"].sum())})
         mlflow.log_metrics(metrics)
         for model_name, model in (("momentum", momentum), ("full", full), ("title", title)):
-            register = "hn-breakout" if final and model_name == best else None
+            register = "hn-breakout" if mode != "--validate" and model_name == best else None
             mlflow.lightgbm.log_model(model, name=model_name, registered_model_name=register)
         mlflow.sklearn.log_model(
             words, name="title_words", serialization_format="pickle"

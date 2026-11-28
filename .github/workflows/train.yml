@@ -2,10 +2,12 @@ name: Train
 on:
   workflow_dispatch:
     inputs:
-      final:
-        description: "Also evaluate on the test period and register the model (once, from 01.12.)"
-        type: boolean
-        default: false
+      mode:
+        description: "validate: fixed periods · final: test period once, register (01.12.) · retrain: last 7 days, register"
+        type: choice
+        options: [validate, final, retrain]
+        default: validate
+  # schedule (weekly retrain): added after the final evaluation on 01.12.
 
 permissions:
   contents: read
@@ -22,7 +24,7 @@ jobs:
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked --group train
-      - run: uv run hn-train ${{ inputs.final && '--final' || '' }}
+      - run: uv run hn-train --${{ inputs.mode || 'retrain' }}   # a scheduled run has no input
         env:
           STORAGE_ROOT: ${{ vars.STORAGE_ROOT }}
           MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
